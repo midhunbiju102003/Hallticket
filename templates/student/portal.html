@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Student Portal - Hall Ticket System{% endblock %}
+
+{% block content %}
+<!-- Student Dashboard Header -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in slide-in-from-top duration-700">
+    <div>
+        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em] mb-2 pl-1">Student Access Terminal</p>
+        <h1 class="text-4xl font-black text-slate-900 tracking-tight" id="greeting-text">Welcome, <span id="user-display-name" class="text-indigo-600">Student</span></h1>
+        <p class="text-slate-500 text-sm mt-2">Access your academic credentials and exam permits below.</p>
+    </div>
+    <div class="flex items-center space-x-3 p-2 bg-white rounded-2xl shadow-sm border border-slate-100">
+        <div id="student-avatar" class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-indigo-100">
+           <i class="fas fa-user"></i>
+        </div>
+        <div class="pr-6">
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Academic ID</p>
+            <p class="text-sm font-bold text-slate-800" id="user-roll-number">-</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Hall Ticket Spotlight -->
+    <div class="lg:col-span-8 space-y-8">
+        <div class="premium-card bg-white overflow-hidden group">
+            <div class="mgmt-header border-b border-slate-50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-slate-800">Active Hall Tickets</h2>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Entry permits for ongoing session</p>
+                    </div>
+                </div>
+            </div>
+            <div id="tickets-list" class="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[300px]">
+                <!-- Population via JS -->
+                <div class="col-span-full flex flex-col items-center justify-center py-20 text-slate-300">
+                    <div class="w-12 h-12 border-2 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                    <p class="text-xs font-bold uppercase tracking-widest">Syncing Permits...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Schedule -->
+        <div class="premium-card bg-white overflow-hidden">
+            <div class="mgmt-header border-b border-slate-50">
+                 <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-slate-800">Complete Roadmap</h2>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Full examination itinerary</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-0 overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                        <tr>
+                            <th class="px-8 py-5">Subject & Code</th>
+                            <th class="px-8 py-5 text-center">Date & Time</th>
+                            <th class="px-8 py-5 text-center">Room</th>
+                            <th class="px-8 py-5 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-table" class="divide-y divide-slate-50">
+                        <!-- Population via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="lg:col-span-4 space-y-8">
+        <!-- Profile Card -->
+        <div class="premium-card bg-indigo-600 text-white p-8 relative overflow-hidden group">
+            <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+            
+            <div class="relative z-10">
+                <h3 class="text-lg font-bold mb-6">Credential Details</h3>
+                <div id="student-profile" class="space-y-6">
+                    <!-- Population via JS -->
+                </div>
+                
+                <div class="mt-10 pt-8 border-t border-white/10 flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-shield-halved text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">System Status</p>
+                        <p class="text-sm font-bold">Authenticated Profile</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Tips -->
+        <div class="premium-card bg-slate-900 text-white p-8">
+            <h3 class="font-bold mb-4 flex items-center">
+                <i class="fas fa-lightbulb text-yellow-400 mr-2"></i> Exam Protocol
+            </h3>
+            <ul class="text-xs text-slate-400 space-y-4">
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mr-2 mt-0.5"></i>
+                    <span>Always carry a printed copy of your hall ticket or have the QR code ready.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mr-2 mt-0.5"></i>
+                    <span>Verify your assigned seat on the dashboard before heading to the hall.</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable Ticket Modal -->
+<div id="ticket-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col transform transition-all scale-95 opacity-0 animate-[modal-pop_0.4s_ease-out_forwards]">
+        <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+            <div>
+                <h3 class="text-2xl font-black text-slate-900">Credential Viewer</h3>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Official University Entry Permit</p>
+            </div>
+            <button onclick="closeTicketModal()" class="w-12 h-12 rounded-2xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="ticket-content" class="p-8 overflow-y-auto max-h-[60vh] custom-scrollbar">
+            <!-- Data via JS -->
+        </div>
+        
+        <div class="p-8 bg-slate-50 flex gap-4">
+            <button onclick="downloadTicketPDF()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all flex items-center justify-center space-x-3">
+                <i class="fas fa-file-pdf"></i>
+                <span>Secure PDF Download</span>
+            </button>
+            <button onclick="closeTicketModal()" class="px-8 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-colors">
+                Return
+            </button>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentStudent = null;
+    let currentTicketId = null;
+
+    // Get student from token
+    function getStudentInfo() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = '/';
+            return;
+        }
+        
+        // Decode JWT to get student info
+        const parts = token.split('.');
+        const decoded = JSON.parse(atob(parts[1]));
+        return decoded;
+    }
+
+    function loadStudentPortal() {
+        try {
+            const studentInfo = getStudentInfo();
+            if (!studentInfo || !studentInfo.student_id) {
+                window.location.href = '/';
+                return;
+            }
+
+            // Immediately display what we have in the token
+            displayStudentInfo(studentInfo);
+            
+            // Fetch fresh data from API to ensure everything is up to date
+            fetch(`${API_URL}/students/${studentInfo.student_id}/`, {
+                headers: {'Authorization': `Bearer ${getToken()}`}
+            })
+            .then(r => {
+                if (!r.ok) throw new Error('Failed to fetch profile');
+                return r.json();
+            })
+            .then(fullData => {
+                console.log('Fresh Profile:', fullData);
+                displayStudentInfo(fullData);
+            })
+            .catch(err => {
+                console.error('Profile fetch error:', err);
+                // Fallback already displayed from token
+            });
+
+            loadHallTickets(studentInfo.student_id);
+            loadSchedule(studentInfo.student_id);
+        } catch (e) {
+            console.error('Portal init error:', e);
+            window.location.href = '/';
+        }
+    }
+
+    function displayStudentInfo(studentInfo) {
+        document.getElementById('user-display-name').textContent = studentInfo.name || 'Student';
+        document.getElementById('user-roll-number').textContent = studentInfo.roll_number || '-';
+        
+        const profile = document.getElementById('student-profile');
+        profile.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest pl-1">Batch / Year</p>
+                    <p class="text-sm font-bold">${studentInfo.batch || '2024'}</p>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest pl-1">Department</p>
+                    <p class="text-sm font-bold">${studentInfo.branch || 'N/A'}</p>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest pl-1">Email</p>
+                    <p class="text-sm font-bold">${studentInfo.email || 'N/A'}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function loadHallTickets(studentId) {
+        fetch(`${API_URL}/hall-tickets/?student_id=${studentId}`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        })
+        .then(r => r.json())
+        .then(data => {
+            const ticketsList = document.getElementById('tickets-list');
+            const tickets = data.results || [];
+            
+            if (tickets.length === 0) {
+                ticketsList.innerHTML = `
+                    <div class="col-span-full border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center p-12 text-slate-400">
+                        <i class="fas fa-ticket text-4xl mb-4 opacity-10"></i>
+                        <p class="text-xs font-bold uppercase tracking-widest">No Active Permits</p>
+                    </div>`;
+                return;
+            }
+
+            ticketsList.innerHTML = tickets.map(ticket => `
+                <div class="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50 transition-all duration-300 group">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">${ticket.exam.subject_code}</p>
+                            <h4 class="font-bold text-slate-800 leading-tight">${ticket.exam.subject_name}</h4>
+                        </div>
+                        <div class="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center">
+                            <i class="fas fa-qrcode text-slate-400 group-hover:text-indigo-600 transition-colors"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4 mb-6">
+                        <div class="px-3 py-1 bg-white border border-slate-100 rounded-lg shadow-sm">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Room</p>
+                            <p class="text-xs font-black text-slate-800">${ticket.exam.room_number}</p>
+                        </div>
+                        <div class="px-3 py-1 bg-white border border-slate-100 rounded-lg shadow-sm">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Seat</p>
+                            <p class="text-xs font-black text-indigo-600">${ticket.seat_assigned || 'Awaiting Allotment'}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="viewTicketDetails('${ticket.id}')" class="flex-1 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors">Details</button>
+                        <button onclick="downloadTicket('${ticket.id}')" class="px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        });
+    }
+
+    function loadSchedule(studentId) {
+        fetch(`${API_URL}/hall-tickets/?student_id=${studentId}`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        })
+        .then(r => r.json())
+        .then(data => {
+            const tickets = data.results || [];
+            const table = document.getElementById('schedule-table');
+            
+            if (tickets.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" class="px-8 py-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Itinerary Empty</td></tr>';
+                return;
+            }
+
+            table.innerHTML = tickets.map(ticket => {
+                const exam = ticket.exam;
+                const dateParts = exam.date.split('-');
+                const examDate = new Date(exam.date);
+                const isUpcoming = examDate >= new Date(new Date().setHours(0,0,0,0));
+                
+                return `
+                    <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <td class="px-8 py-6">
+                            <p class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">${exam.subject_name}</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">${exam.subject_code}</p>
+                        </td>
+                        <td class="px-8 py-6 text-center">
+                            <div class="inline-flex flex-col items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-xs font-black text-slate-800">${exam.date}</span>
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${exam.start_time} - ${exam.end_time}</span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-center">
+                            <span class="text-sm font-black text-slate-700">${exam.room_number}</span>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <span class="px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${
+                                isUpcoming ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-100 text-slate-400 border border-slate-200'
+                            }">
+                                ${isUpcoming ? 'Scheduled' : 'Completed'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        });
+    }
+
+    function viewTicketDetails(ticketId) {
+        currentTicketId = ticketId;
+        fetch(`${API_URL}/hall-tickets/${ticketId}/`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        })
+        .then(r => r.json())
+        .then(ticket => {
+            const exam = ticket.exam;
+            const student = ticket.student;
+            
+            document.getElementById('ticket-content').innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-gray-600 text-sm">Ticket Number</p>
+                            <p class="font-semibold">${ticket.ticket_number}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 text-sm">Issued Date</p>
+                            <p class="font-semibold">${new Date(ticket.issued_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <p class="font-semibold mb-2">Student Information</p>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-600">Name</p>
+                                <p>${student.name}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Roll Number</p>
+                                <p>${student.roll_number}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Batch</p>
+                                <p>${student.batch}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Branch</p>
+                                <p>${student.branch}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <p class="font-semibold mb-2">Exam Details</p>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-600">Subject</p>
+                                <p>${exam.subject_name}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Code</p>
+                                <p>${exam.subject_code}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Date</p>
+                                <p>${exam.date}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Time Slot</p>
+                                <p>${exam.start_time} - ${exam.end_time}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Room Number</p>
+                                <p>${exam.room_number}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Assigned Seat</p>
+                                <p class="font-bold text-blue-600">${ticket.seat_assigned || 'Not Yet Assigned'}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Invigilator</p>
+                                <p>${exam.invigilator_name}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${ticket.qr_code_url ? `
+                        <div class="border-t pt-4 text-center">
+                            <p class="font-semibold mb-2">QR Code</p>
+                            <img src="${ticket.qr_code_url}" alt="QR Code" class="w-32 h-32 mx-auto">
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            document.getElementById('ticket-modal').classList.remove('hidden');
+        });
+    }
+
+    function downloadTicket(ticketId) {
+        window.location.href = `${API_URL}/hall-tickets/${ticketId}/download_pdf/`;
+    }
+
+    function downloadTicketPDF() {
+        downloadTicket(currentTicketId);
+    }
+
+    function closeTicketModal() {
+        document.getElementById('ticket-modal').classList.add('hidden');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', loadStudentPortal);
+</script>
+{% endblock %}
