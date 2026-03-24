@@ -1,0 +1,6 @@
+roll_number,name,email,phone,gender,batch,branch
+CS001,John Doe,john@example.com,9876543210,M,2024,Computer Science
+CS002,Jane Smith,jane@example.com,9876543211,F,2024,Computer Science
+EC001,Bob Johnson,bob@example.com,9876543212,M,2024,Electronics
+EC002,Alice Williams,alice@example.com,9876543213,F,2024,Electronics
+ME001,Charlie Brown,charlie@example.com,9876543214,M,2024,Mechanical

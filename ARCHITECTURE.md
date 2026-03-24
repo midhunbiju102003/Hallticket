@@ -1,0 +1,544 @@
+# 🏗️ System Architecture & Workflow
+
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USERS                                     │
+├──────────────┬──────────────────────────┬───────────────────────┤
+│   ADMIN      │       STUDENT            │      STAFF/VERIFIER   │
+│ (Gen.Admin)  │    (View Tickets)        │    (Mark Attendance)  │
+└──────────────┴──────────────────────────┴───────────────────────┘
+       │                 │                         │
+       │                 │                         │
+       ├─────────────────┼─────────────────────────┤
+       │                 │                         │
+       v                 v                         v
+┌──────────────────────────────────────────────────────────────────┐
+│                     WEB FRONTEND (HTML/JS)                        │
+├──────────────┬──────────────────────────┬───────────────────────┤
+│ Admin        │ Student                  │ Staff                  │
+│ - Dashboard  │ - Portal                 │ - Scanner              │
+│ - Forms      │ - Tickets                │ - Camera               │
+│ - Reports    │ - Schedule               │ - Statistics           │
+└──────────────┴──────────────────────────┴───────────────────────┘
+                           │
+                           │ HTTP/AJAX
+                           │ (JSON + JWT)
+                           v
+┌──────────────────────────────────────────────────────────────────┐
+│                  REST API (Django)                                │
+├──────────────┬──────────────────────────┬───────────────────────┤
+│ Auth         │ Resources                │ Business Logic         │
+│ - Login      │ - Students               │ - QR Validation        │
+│ - JWT        │ - Exams                  │ - Attendance Logic     │
+│ - Roles      │ - Tickets                │ - Report Generation    │
+│              │ - Attendance             │ - Security             │
+└──────────────┴──────────────────────────┴───────────────────────┘
+                           │
+                           │ ORM
+                           │
+                           v
+┌──────────────────────────────────────────────────────────────────┐
+│                  DATABASE (SQLite)                                │
+├──────────────┬──────────────────────────┬───────────────────────┤
+│ Users        │ Exam Data                │ Tracking               │
+│ - Auth User  │ - Exams                  │ - HallTickets          │
+│ - AdminUser  │ - Students               │ - Attendance           │
+│ - Roles      │ - Relationships          │ - QR Codes             │
+└──────────────┴──────────────────────────┴───────────────────────┘
+```
+
+---
+
+## Workflow Diagrams
+
+### 1. Hall Ticket Generation Flow
+
+```
+┌─────────────────┐
+│   Admin Login   │
+└────────┬────────┘
+         │
+         v
+┌──────────────────────────┐
+│  Admin Dashboard Loaded  │
+└────────┬─────────────────┘
+         │
+    ┌────┴─────────────┐
+    │                  │
+    v                  v
+┌─────────┐      ┌──────────────┐
+│ Create  │      │ Add Students │
+│ Exam    │      │ (CSV/Manual) │
+└────┬────┘      └──────┬───────┘
+     │                  │
+     └──────────┬───────┘
+                │
+         ┌──────v──────────┐
+         │ Select Students │
+         │ + Exam          │
+         └──────┬──────────┘
+                │
+         ┌──────v──────────────────┐
+         │ Generate Hall Tickets   │
+         │ (Bulk Operation)        │
+         └──────┬──────────────────┘
+                │
+    ┌───────────┼───────────┐
+    │           │           │
+    v           v           v
+┌────────┐ ┌────────┐ ┌────────────┐
+│ Create │ │ Gen QR │ │ Generate   │
+│Ticket  │ │ Code   │ │ Signature  │
+└────────┘ └────────┘ └────────────┘
+    │           │           │
+    └───────────┼───────────┘
+                │
+        ┌───────v────────┐
+        │  Store in DB   │
+        │  + Media Folder│
+        └────────────────┘
+```
+
+### 2. Student Access Flow
+
+```
+┌──────────────────┐
+│ Student Login    │ (Roll Number)
+└────────┬─────────┘
+         │
+    ┌────v─────────────────────┐
+    │ Generate JWT Token       │
+    │ (Student ID + Roll#)     │
+    └────┬────────────────────┘
+         │
+    ┌────v──────────────┐
+    │ Get Student Info  │
+    │ (JWT Validation)  │
+    └────┬──────────────┘
+         │
+    ┌────v─────────────────────────────┐
+    │ Fetch Hall Tickets for Student   │
+    └────┬──────────────────────────────┘
+         │
+    ┌────┴──────────────┐
+    │                   │
+    v                   v
+┌──────────────┐  ┌────────────────┐
+│ Display      │  │ For each ticket│
+│ Tickets      │  │ show:          │
+│ (HTML List)  │  │ - PDF Button   │
+└──────────────┘  │ - QR Preview   │
+                  │ - Exam Details │
+                  └────────┬───────┘
+                           │
+                    ┌──────v────────┐
+                    │ On PDF click: │
+                    │ Download PDF  │
+                    │ (Generated    │
+                    │  server-side) │
+                    └───────────────┘
+```
+
+### 3. Attendance Marking Flow
+
+```
+┌────────────────────┐
+│ Staff Login        │
+│ (username/password)│
+└────────┬───────────┘
+         │
+    ┌────v───────────────┐
+    │ Generate JWT Token │
+    │ (Staff ID + Role)  │
+    └────┬───────────────┘
+         │
+    ┌────v──────────────────┐
+    │ Scanner Page Loaded   │
+    │ (Select Exam)        │
+    └────┬──────────────────┘
+         │
+    ┌────v───────────────────────┐
+    │ Open Camera (WebRTC)        │
+    │ - Request camera permission│
+    │ - Initialize html5-qrcode  │
+    └────┬──────────────────────┘
+         │
+    ┌────v──────────────────┐
+    │ Scan QR Code         │
+    │ (Capture via Camera) │
+    └────┬──────────────────┘
+         │
+    ┌────v────────────────────────────────┐
+    │ Parse QR Data                       │
+    │ Extract: Ticket# | Roll# | Subject# │
+    └────┬───────────────────────────────┘
+         │
+    ┌────v─────────────────────────────┐
+    │ Server Validation:                │
+    │ 1. Look up HallTicket             │
+    │ 2. Verify HMAC Signature          │
+    │ 3. Check if already scanned       │
+    └────┬──────────────────────────────┘
+         │
+    ┌────┴──────────────┬──────────────┬──────────────┐
+    │                   │              │              │
+    v                   v              v              v
+ ┌────────┐      ┌──────────┐   ┌──────────┐  ┌──────────┐
+ │VALID   │      │ALREADY   │   │ INVALID  │  │ERROR     │
+ │        │      │ SCANNED  │   │ SIGNATURE│  │Exception │
+ └───┬────┘      └────┬─────┘   └────┬─────┘  └────┬─────┘
+     │                │              │             │
+     v                v              v             v
+  Create       Show Warning      Show Alert    Log Error
+  Attendance   Duplicate         Invalid       Retry
+  Record       Counter +1        Ticket       Optional
+  Status:
+  PRESENT      │                 │             │
+               v                 v             v
+           ┌────────────────────────────────────────┐
+           │ Update UI with Result                  │
+           │ - Show student name                    │
+           │ - Show ticket status                   │
+           │ - Update statistics                    │
+           │ - Add to history table                 │
+           └────────────────────────────────────────┘
+                         │
+                    ┌────v─────┐
+                    │ Continue │
+                    │ Scanning │
+                    └──────────┘
+```
+
+---
+
+## Data Flow Diagrams
+
+### QR Code Creation & Validation
+
+```
+CREATION PHASE:
+━━━━━━━━━━━━━━
+
+Student (S0001) + Exam (CS201) → Generate Ticket
+
+┌──────────────────────────────────┐
+│ Create Ticket Data:              │
+│ HT:TICKET123:CS101:CS201         │
+└──────────────────────────┬───────┘
+                           │
+                ┌──────────v───────────┐
+                │ Generate HMAC-SHA256 │
+                │ Secret: hall_ticket_ │
+                │ secret               │
+                └──────────┬───────────┘
+                           │
+        ┌──────────────────v──────────────────┐
+        │ Signature: 3F9A8D2E1B4C7F...        │
+        └────────────────┬─────────────────────┘
+                         │
+        ┌────────────────v──────────────────┐
+        │ Generate PNG QR Image             │
+        │ Content: HT:TICKET123:CS101:CS201 │
+        └────────────────┬──────────────────┘
+                         │
+        ┌────────────────v──────────────────────┐
+        │ Store:                                │
+        │ - DB: ticket info + signature         │
+        │ - File: QR image in media folder      │
+        │ - PDF: Generated on demand            │
+        └───────────────────────────────────────┘
+
+
+VALIDATION PHASE:
+━━━━━━━━━━━━━━━━
+
+Scanner reads QR → Extract Data
+
+┌─────────────────────────────┐
+│ Scanned QR Data:            │
+│ HT:TICKET123:CS101:CS201    │
+└────────────┬────────────────┘
+             │
+     ┌───────v──────────┐
+     │ Parse QR String  │
+     │ Extract:         │
+     │ - Ticket: TICKET123
+     │ - Roll#: CS101
+     │ - Subject: CS201 │
+     └───────┬──────────┘
+             │
+     ┌───────v───────────────────┐
+     │ Lookup Ticket in Database │
+     │ Find → Stored Signature   │
+     └───────┬───────────────────┘
+             │
+     ┌───────v──────────────────────┐
+     │ Regenerate HMAC from QR data │
+     │ Secret: hall_ticket_secret   │
+     │ Calculated: 3F9A8D2E1B4C7F...│
+     └───────┬──────────────────────┘
+             │
+     ┌───────v──────────────────────┐
+     │ Compare Signatures:          │
+     │ DB Sig == Calculated Sig ?   │
+     └───────┬──────────────────────┘
+             │
+          ┌──┴──┐
+          │     │
+          v     v
+        ✓       ✗
+      VALID  INVALID
+        │       │
+        │       └─→ Reject Scan
+        │           Show Error
+        │
+        ├─→ Check Duplicate
+        │   (Already scanned today?)
+        │
+        ├─→ Check Hall Ticket Status
+        │   (ACTIVE? Not cancelled?)
+        │
+        └─→ Mark Attendance
+            Create Record
+            Return to Frontend
+```
+
+---
+
+## Security Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           SECURITY LAYERS                               │
+└─────────────────────────────────────────────────────────┘
+
+Layer 1: TRANSPORT SECURITY
+├─ HTTPS (recommended for production)
+├─ CORS validation
+└─ Content-Type validation
+
+Layer 2: AUTHENTICATION
+├─ JWT token generation
+├─ Token expiry (24 hours)
+├─ Role-based access
+└─ Request validation
+
+Layer 3: DATA INTEGRITY
+├─ HMAC-SHA256 signatures on QR codes
+├─ Database constraints
+├─ Input validation & sanitization
+└─ SQL injection prevention (ORM)
+
+Layer 4: BUSINESS LOGIC SECURITY
+├─ Duplicate attendance prevention
+├─ Ticket status validation
+├─ Signature verification
+├─ Device fingerprinting
+└─ Timestamp validation
+
+Layer 5: APPLICATION SECURITY
+├─ CSRF protection (middleware)
+├─ XSS prevention
+├─ SQL injection protection
+└─ Rate limiting (future)
+
+Layer 6: DEPLOYMENT SECURITY
+├─ SECRET_KEY protection
+├─ DEBUG=False in production
+├─ Environment variables for secrets
+└─ ALLOWED_HOSTS configuration
+```
+
+---
+
+## Database Relationships
+
+```
+┌──────────────┐
+│ django.User  │
+│ (Django Auth)│
+└───────┬──────┘
+        │ 1:1
+        └─────────────────┐
+                          │
+┌─────────────────┐       │
+│  AdminUser      │◄──────┘
+│  - user_id      │
+│  - role         │
+│  - department   │
+└─────────────────┘
+
+
+┌──────────────┐
+│  Student     │
+│  - id (UUID) │
+│  - name      │
+│  - roll_no   │
+│  - email     │
+└────────┬─────┘
+         │ 1:N
+         │
+    ┌────v──────────┐
+    │  HallTicket   │
+    │  - student_id │◄────┐
+    │  - exam_id    │     │ 1:N
+    │  - qr_code    │     │
+    │  - signature  │     │
+    └────┬──────────┘     │
+         │ 1:N            │
+         │                │
+    ┌────v──────────┐     │
+    │ Attendance    │     │
+    │ - ticket_id   │     │
+    │ - student_id  │─────┤
+    │ - status      │     │
+    │ - scanned_at  │     │
+    └───────────────┘     │
+                          │
+                   ┌──────v───┐
+                   │   Exam   │
+                   │ - id     │
+                   │ - subject│
+                   │ - date   │
+                   │ - time   │
+                   │ - room   │
+                   └──────────┘
+```
+
+---
+
+## Deployment Architecture (Recommended)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                        INTERNET                             │
+└─────────────────────────┬──────────────────────────────────┘
+                          │
+                    ┌─────v──────┐
+                    │   CloudFront│ (CDN)
+                    │   or AWS    │
+                    │   AppCache  │
+                    └─────┬──────┘
+                          │
+        ┌─────────────────v──────────────────┐
+        │ NGINX / Apache (Reverse Proxy)     │
+        │ - SSL Termination                  │
+        │ - Compression                      │
+        │ - Caching                          │
+        └─────────────────┬──────────────────┘
+                          │
+            ┌─────────────┴────────────────┐
+            │                              │
+         ┌──v──┐                      ┌───v──┐
+         │Web  │ Gunicorn             │Celery│
+         │App  │ (3-5 workers)        │Tasks │
+         │1-3  │                      │Queues│
+         └──┬──┘                      └───┬──┘
+            │                            │
+            └────────────┬───────────────┘
+                         │
+              ┌──────────v──────────┐
+              │ PostgreSQL Database │
+              │ (Production)        │
+              └──────────┬──────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+      ┌──v──┐       ┌────v───┐      ┌───v───┐
+      │Media│ (S3) │Redis   │     │Logs    │
+      │QR   │       │Cache   │     │Monitor │
+      │PDFs │       │Sessions│     │ELK     │
+      └─────┘       └────────┘     └────────┘
+```
+
+---
+
+## Performance Optimization Tips
+
+```
+FRONTEND OPTIMIZATION
+├─ Cache static files (CSS, JS, Fonts)
+├─ Minify CSS/JavaScript
+├─ Compress images
+├─ Lazy load components
+└─ Service worker for offline
+
+BACKEND OPTIMIZATION
+├─ Database indexing on frequently queried fields
+├─ Query optimization (select_related, prefetch_related)
+├─ Cache API responses (Redis)
+├─ Async task processing (Celery)
+├─ API rate limiting
+└─ Connection pooling (pgBouncer)
+
+DATABASE OPTIMIZATION
+├─ Index: roll_number, subject_code, exam.date
+├─ Partition by exam for large datasets
+├─ Regular VACUUM & ANALYZE (PostgreSQL)
+├─ Backup strategy
+└─ Read replicas for reports
+
+INFRASTRUCTURE
+├─ CDN for static files
+├─ Multiple app server instances
+├─ Load balancing
+├─ Database replication
+└─ Monitoring & alerting
+```
+
+---
+
+## API Response Flow
+
+```
+REQUEST:
+┌──────────────────────────┐
+│ POST /api/attendance/    │
+│      mark_attendance/    │
+├──────────────────────────┤
+│ Headers:                 │
+│ Authorization: Bearer... │
+│ Content-Type: JSON       │
+├──────────────────────────┤
+│ Body:                    │
+│ {                        │
+│   "qr_data": "HT:...",   │
+│   "exam_id": "uuid..",   │
+│   "device": "WEB_SCNR"   │
+│ }                        │
+└────────┬─────────────────┘
+         │
+         v
+┌──────────────────────────┐
+│ PROCESSING:              │
+│ 1. Validate token        │
+│ 2. Parse QR data         │
+│ 3. Query database        │
+│ 4. Verify HMAC           │
+│ 5. Create attendance     │
+│ 6. Serialize response    │
+└────────┬─────────────────┘
+         │
+         v
+RESPONSE:
+┌──────────────────────────┐
+│ 201 CREATED              │
+├──────────────────────────┤
+│ {                        │
+│   "success": true,       │
+│   "status": "VALID",     │
+│   "attendance": {...},   │
+│   "student": {...}       │
+│ }                        │
+└──────────────────────────┘
+```
+
+---
+
+This completes the comprehensive system architecture documentation!
+
+**See README.md for functional documentation**
+**See SETUP_GUIDE.md for deployment instructions**
+**See API_DOCUMENTATION.md for API endpoint details**
