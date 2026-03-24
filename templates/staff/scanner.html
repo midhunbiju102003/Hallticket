@@ -1,1 +1,498 @@
+{% extends "base.html" %}
 
+{% block title %}Staff QR Scanner - Hall Ticket System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes scan-beam {
+        0%, 100% { top: 10%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        50% { top: 90%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Scanner Header -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in slide-in-from-left duration-700">
+    <div>
+        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em] mb-2 pl-1">Security & Verification</p>
+        <h1 class="text-4xl font-black text-slate-900 tracking-tight">Access Control Portal</h1>
+        <p class="text-slate-500 text-sm mt-2">Authenticated personnel terminal for real-time exam verification.</p>
+    </div>
+    <div class="flex items-center space-x-3">
+        <div class="flex items-center bg-green-50 border border-green-100 rounded-xl px-4 py-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+            <span class="text-[10px] font-black text-green-700 uppercase tracking-widest">System Online</span>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Camera/Scanner Section -->
+    <div class="lg:col-span-8 flex flex-col space-y-8">
+        <div class="premium-card bg-slate-900 border-slate-800 overflow-hidden group">
+            <div class="p-6 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex-1 w-full md:w-auto">
+                    <select id="exam-select" class="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="">Choose Active Session...</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <button onclick="startScanning()" class="flex-1 md:flex-none px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2">
+                        <i class="fas fa-video"></i>
+                        <span>Start Capture</span>
+                    </button>
+                    <button onclick="stopScanning()" class="flex-1 md:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2">
+                        <i class="fas fa-power-off"></i>
+                        <span>End Session</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="relative bg-black min-h-[400px] flex items-center justify-center overflow-hidden">
+                <!-- Optical Viewfinder Overlays -->
+                <div class="absolute inset-0 pointer-events-none z-10 border-[40px] border-black/40"></div>
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-indigo-500/30 rounded-3xl pointer-events-none z-20">
+                    <div class="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl"></div>
+                    <div class="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl"></div>
+                    <div class="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl"></div>
+                    <div class="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-xl"></div>
+                </div>
+
+                <div id="qr-reader" class="w-full h-full min-h-[450px]"></div>
+                
+                <!-- Initial State UI -->
+                <div id="scanner-placeholder" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center text-slate-500 z-30 transition-opacity duration-500">
+                    <i class="fas fa-camera text-6xl mb-6 opacity-20"></i>
+                    <p class="text-xs font-black uppercase tracking-[0.2em]">Select Session to Initialize Camera</p>
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-800/50">
+                <div class="flex items-center justify-between gap-6">
+                    <div class="flex-1 relative">
+                        <i class="fas fa-keyboard absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                        <input type="text" id="manual-qr" placeholder="Enter Roll Number / QR Data..." class="w-full pl-10 pr-4 py-3 bg-slate-900 border-none rounded-xl text-xs text-white focus:ring-2 focus:ring-indigo-500 transition-all font-mono">
+                    </div>
+                    <button onclick="processQRCode(document.getElementById('manual-qr').value)" class="px-8 py-3 bg-white text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all">
+                        Validate
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="premium-card bg-white overflow-hidden">
+            <div class="mgmt-header border-b border-slate-50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-slate-800">Mission History</h2>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Recent scan synchronization</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-0 overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <tr>
+                            <th class="px-8 py-4">Timestamp</th>
+                            <th class="px-8 py-4">Subject Profile</th>
+                            <th class="px-8 py-4 text-center">Status</th>
+                            <th class="px-8 py-4 text-right">Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table" class="divide-y divide-slate-50 text-xs">
+                        <!-- Population via JS -->
+                        <tr>
+                            <td colspan="4" class="px-8 py-20 text-center text-slate-300 italic">No verification records available for current session.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results/Stats Panel -->
+    <div class="lg:col-span-4 flex flex-col space-y-8">
+        <!-- Live Analytics -->
+        <div class="premium-card bg-white p-8">
+            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-8 flex items-center">
+                <i class="fas fa-chart-pie text-indigo-500 mr-2"></i> Session Telemetry
+            </h3>
+            <div class="space-y-6">
+                <div class="bg-slate-50 rounded-2xl p-6 relative overflow-hidden">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Total Scanned</p>
+                    <p class="text-4xl font-black text-slate-900" id="total-scanned">0</p>
+                    <div class="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-slate-300">
+                        <i class="fas fa-qrcode text-xl"></i>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-green-50 rounded-2xl p-4 border border-green-100">
+                        <p class="text-[9px] font-black text-green-700 uppercase tracking-widest mb-1">Approved</p>
+                        <p class="text-2xl font-black text-green-600" id="present-count">0</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100">
+                        <p class="text-[9px] font-black text-orange-700 uppercase tracking-widest mb-1">Redundant</p>
+                        <p class="text-2xl font-black text-orange-600" id="duplicate-count">0</p>
+                    </div>
+                </div>
+                <div class="bg-red-50 rounded-2xl p-4 border border-red-100">
+                    <div class="flex justify-between items-end">
+                        <p class="text-[9px] font-black text-red-700 uppercase tracking-widest mb-1">Authentication Failures</p>
+                        <p class="text-2xl font-black text-red-600" id="invalid-count">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Verification Feed -->
+        <div class="premium-card bg-slate-900 text-white p-8">
+             <h3 class="text-sm font-black uppercase tracking-widest mb-8 flex items-center">
+                <i class="fas fa-bolt text-indigo-400 mr-2"></i> Verification Feed
+            </h3>
+            <div id="scan-result" class="min-h-[160px] flex flex-col items-center justify-center text-center">
+                <div class="relative w-24 h-24 bg-white/5 rounded-[2rem] border border-white/10 flex items-center justify-center text-slate-600 mb-6 overflow-hidden">
+                    <i class="fas fa-fingerprint text-4xl opacity-20"></i>
+                    <!-- Optical Scan Line Animation -->
+                    <div class="absolute inset-x-0 h-0.5 bg-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-[scan-beam_2s_infinite]"></div>
+                </div>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Ready for Verification</p>
+            </div>
+        </div>
+
+        <!-- Force Controls -->
+        <div class="premium-card p-6 bg-slate-50 border-slate-100">
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="exportAttendance()" class="py-4 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all flex flex-col items-center gap-2">
+                    <i class="fas fa-file-export text-slate-400"></i>
+                    <span>Export Data</span>
+                </button>
+                <button onclick="refreshStats()" class="py-4 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all flex flex-col items-center gap-2">
+                    <i class="fas fa-sync-alt text-slate-400"></i>
+                    <span>Reload Core</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Confirmation Modal -->
+<div id="confirmation-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow p-6 w-full max-w-sm">
+        <h3 class="text-lg font-bold mb-4" id="modal-title">Confirm Attendance</h3>
+        <div id="modal-content" class="text-gray-600 mb-6">
+            <p>Please verify the details</p>
+        </div>
+        <div class="flex space-x-3 justify-end">
+            <button onclick="cancelConfirm()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+                Cancel
+            </button>
+            <button id="confirm-btn" onclick="confirmAttendance()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+    let html5QrCode = null;
+    let isScanning = false;
+    let pendingQRData = null;
+    const scanHistory = [];
+    let stats = { total: 0, present: 0, duplicate: 0, invalid: 0 };
+
+    function loadExams() {
+        fetch(`${API_URL}/exams/`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        })
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('exam-select');
+            const exams = data.results || [];
+            select.innerHTML = '<option value="">Select Exam...</option>';
+            select.innerHTML += exams.map(e => `
+                <option value="${e.id}">${e.subject_code} - ${e.subject_name} (${e.date})</option>
+            `).join('');
+        });
+    }
+
+    function startScanning() {
+        const examId = document.getElementById('exam-select').value;
+        if (!examId) {
+            showNotification('Session Required', 'Please select an active examination before starting.', 'error');
+            return;
+        }
+
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("qr-reader");
+        }
+
+        if (!isScanning) {
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                onScanError
+            ).then(() => {
+                isScanning = true;
+                document.getElementById('scanner-placeholder').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('scanner-placeholder').classList.add('hidden');
+                }, 500);
+                showNotification('Optics Initialized', 'Real-time capture active.', 'success');
+            }).catch(err => {
+                showNotification('Hardware Error', 'Could not initialize camera: ' + err, 'error');
+            });
+        }
+    }
+
+    function stopScanning() {
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                document.getElementById('scanner-placeholder').classList.remove('hidden');
+                setTimeout(() => {
+                    document.getElementById('scanner-placeholder').style.opacity = '1';
+                }, 10);
+                showNotification('Session Terminated', 'Scanner deactivated.', 'warning');
+            });
+        }
+    }
+
+    function onScanSuccess(qrCodeMessage) {
+        if (!isScanning) return;
+        
+        // Visual feedback for scan
+        const reader = document.getElementById('qr-reader');
+        reader.classList.add('brightness-150');
+        setTimeout(() => reader.classList.remove('brightness-150'), 100);
+
+        processQRCode(qrCodeMessage);
+        
+        // Restart after short delay
+        stopScanning();
+        setTimeout(() => startScanning(), 1500);
+    }
+
+    function onScanError(error) {
+        // Ignore scanning errors - it's normal for them to occur frequently
+    }
+
+    function processQRCode(qrData) {
+        const examId = document.getElementById('exam-select').value;
+        if (!examId) {
+            showNotification('Please select an exam', 'error');
+            return;
+        }
+
+        const payload = {
+            qr_data: qrData.trim(),
+            exam_id: examId,
+            device: 'WEB_SCANNER'
+        };
+
+        fetch(`${API_URL}/attendance/mark_attendance/`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(response => handleScanResponse(response))
+        .catch(err => {
+            showNotification('Error scanning: ' + err, 'error');
+            showScanResult({
+                success: false,
+                status: 'ERROR',
+                message: err.message
+            });
+        });
+    }
+
+    function handleScanResponse(response) {
+        if (response.success) {
+            stats.total++;
+            if (response.status === 'VALID') {
+                stats.present++;
+                showScanResult(response, 'success');
+            } else if (response.status === 'ALREADY_SCANNED') {
+                stats.duplicate++;
+                showScanResult(response, 'warning');
+            }
+        } else {
+            stats.invalid++;
+            showScanResult(response, 'error');
+        }
+        
+        updateStats();
+        addToHistory(response);
+    }
+
+    function showScanResult(response, type) {
+        const resultDiv = document.getElementById('scan-result');
+        let icon = 'fa-scanner-gun';
+        let color = 'text-slate-600';
+        let bg = 'bg-white/5';
+
+        if (response.status === 'VALID') {
+            icon = 'fa-shield-check';
+            color = 'text-green-500';
+            bg = 'bg-green-500/10';
+        } else if (response.status === 'ALREADY_SCANNED') {
+            icon = 'fa-triangle-exclamation';
+            color = 'text-orange-500';
+            bg = 'bg-orange-500/10';
+        } else if (!response.success) {
+            icon = 'fa-octagon-exclamation';
+            color = 'text-red-500';
+            bg = 'bg-red-500/10';
+        }
+
+        resultDiv.innerHTML = `
+            <div class="w-20 h-20 ${bg} rounded-[2rem] border border-white/10 flex items-center justify-center ${color} mb-6 transform transition-all animate-bounce">
+                <i class="fas ${icon} text-3xl"></i>
+            </div>
+            <p class="text-[10px] font-black ${color} uppercase tracking-[0.3em] mb-2">${response.status || 'Verification'}</p>
+            <p class="text-sm font-bold text-white leading-tight px-4">${response.message || 'System ready for capture'}</p>
+            ${response.student ? `
+                <div class="mt-6 pt-6 border-t border-white/5 w-full text-left space-y-2">
+                    <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-2">Subject Verified</p>
+                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p class="text-white font-bold text-xs">${response.student.name}</p>
+                        <p class="text-[10px] text-slate-400 font-mono">${response.student.roll_number}</p>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    function updateStats() {
+        document.getElementById('total-scanned').textContent = stats.total;
+        document.getElementById('present-count').textContent = stats.present;
+        document.getElementById('duplicate-count').textContent = stats.duplicate;
+        document.getElementById('invalid-count').textContent = stats.invalid;
+    }
+
+    function addToHistory(response) {
+        if (response.student) {
+            scanHistory.unshift({
+                time: new Date(),
+                student: response.student,
+                status: response.status,
+                message: response.message
+            });
+            
+            updateHistoryTable();
+        }
+    }
+
+    function updateHistoryTable() {
+        const table = document.getElementById('history-table');
+        
+        if (scanHistory.length === 0) {
+            table.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center text-slate-300 italic">No verification records available for current session.</td></tr>';
+            return;
+        }
+
+        table.innerHTML = scanHistory.slice(0, 20).map((item, idx) => {
+            const statusClass = item.status === 'VALID' ? 'text-green-600 bg-green-50 border-green-100' :
+                               item.status === 'ALREADY_SCANNED' ? 'text-orange-600 bg-orange-50 border-orange-100' :
+                               'text-red-600 bg-red-50 border-red-100';
+            
+            return `
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="px-8 py-5">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-slate-800">${item.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span class="text-[10px] text-slate-400 font-medium">${item.time.toLocaleDateString()}</span>
+                        </div>
+                    </td>
+                    <td class="px-8 py-5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
+                                <i class="fas fa-user text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-800">${item.student.name}</p>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">${item.student.roll_number}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-5 text-center">
+                        <span class="px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${statusClass}">
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-right">
+                        <p class="text-[10px] font-medium text-slate-500 max-w-[150px] inline-block truncate">${item.message}</p>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function refreshStats() {
+        const examId = document.getElementById('exam-select').value;
+        if (!examId) {
+            showNotification('Please select an exam', 'error');
+            return;
+        }
+
+        fetch(`${API_URL}/attendance/exam_report/?exam_id=${examId}`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        })
+        .then(r => r.json())
+        .then(data => {
+            console.log('Report:', data);
+            showNotification('Report refreshed');
+        });
+    }
+
+    function exportAttendance() {
+        const examId = document.getElementById('exam-select').value;
+        if (!examId) {
+            showNotification('Please select an exam', 'error');
+            return;
+        }
+
+        // Simple CSV export
+        let csv = 'Time,Roll Number,Name,Status\n';
+        scanHistory.forEach(item => {
+            csv += `${item.time.toLocaleString()},"${item.student.roll_number}","${item.student.name}","${item.status}"\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_${examId}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    }
+
+    function cancelConfirm() {
+        document.getElementById('confirmation-modal').classList.add('hidden');
+    }
+
+    function confirmAttendance() {
+        if (pendingQRData) {
+            processQRCode(pendingQRData);
+            cancelConfirm();
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadExams();
+    });
+</script>
+{% endblock %}
