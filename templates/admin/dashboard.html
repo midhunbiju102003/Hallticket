@@ -1,1 +1,1482 @@
+{% extends "base.html" %}
 
+{% block title %}Admin Dashboard - CampusEntry{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stat-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    }
+    .mgmt-tab {
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .mgmt-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: rgba(248, 250, 252, 0.5);
+    }
+    .search-input {
+        width: 100%;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+        background-color: #f1f5f9;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    .search-input:focus {
+        background-color: #ffffff;
+        box-shadow: 0 0 0 2px #4f46e5;
+        outline: none;
+    }
+    .grid-bg {
+        background-color: #f8fafc;
+        background-image: radial-gradient(#e2e8f0 0.5px, transparent 0.5px);
+        background-size: 24px 24px;
+    }
+    .seat {
+        width: 2rem;
+        height: 2.5rem;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-bottom-width: 4px;
+    }
+    .seat-empty { background-color: #f1f5f9; border-color: #cbd5e1; color: #94a3b8; }
+    .seat-empty:hover { background-color: #e2e8f0; }
+    .seat-allotted { background-color: #4f46e5; border-color: #3730a3; color: #ffffff; }
+    .seat-allotted:hover { transform: scale(1.1); z-index: 10; }
+    .seat-verified { background-color: #10b981; border-color: #059669; color: #ffffff; }
+    .seat-verified:hover { transform: scale(1.1); z-index: 10; }
+    .seat-selected { background-color: #10b981; border-color: #047857; color: #ffffff; }
+
+    /* Enhanced Animations */
+    @keyframes icon-bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-bounce-slow { animation: icon-bounce 2s infinite ease-in-out; }
+    
+    @keyframes pulse-ring {
+        0% { transform: scale(0.33); opacity: 1; }
+        80%, 100% { opacity: 0; }
+    }
+    .status-ring::before {
+        content: '';
+        position: absolute;
+        width: 100%; height: 100%;
+        background: currentColor;
+        border-radius: 50%;
+        animation: pulse-ring 1.5s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        opacity: 0.5;
+    }
+    
+    .hover-pop:hover { transform: scale(1.05); }
+    .active-tick { display: flex !important; animation: modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8 animate-in fade-in duration-700">
+    <!-- Header with Breadcrumbs -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <nav class="flex text-slate-400 text-xs font-semibold mb-2 uppercase tracking-wider">
+                <span class="hover:text-indigo-600 cursor-pointer">Portal</span>
+                <span class="mx-2">/</span>
+                <span class="text-slate-600">Admin Overview</span>
+            </nav>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">System Dashboard</h1>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="loadDashboard()" class="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <div class="h-8 w-px bg-slate-200 mx-1"></div>
+            <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl flex items-center space-x-3 shadow-sm">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">A</div>
+                <div class="text-sm">
+                    <p class="font-bold text-slate-800 leading-none" id="user-name-display">System Admin</p>
+                    <p class="text-xs text-slate-500 mt-1">Super Administrator</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="stat-card group">
+            <div class="stat-icon bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Students</p>
+                <div class="flex items-baseline space-x-2">
+                    <p class="text-2xl font-bold text-slate-900" id="stat-students">0</p>
+                    <span class="text-[10px] text-green-500 font-bold"><i class="fas fa-arrow-up"></i> 12%</span>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card group">
+            <div class="stat-icon bg-green-50 text-green-600 group-hover:scale-110 transition-transform">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Active Exams</p>
+                <p class="text-2xl font-bold text-slate-900" id="stat-exams">0</p>
+            </div>
+        </div>
+        <div class="stat-card group">
+            <div class="stat-icon bg-indigo-50 text-indigo-600 group-hover:scale-110 transition-transform">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Hall Tickets</p>
+                <p class="text-2xl font-bold text-slate-900" id="stat-tickets">0</p>
+            </div>
+        </div>
+        <div class="stat-card group">
+            <div class="stat-icon bg-orange-50 text-orange-600 group-hover:scale-110 transition-transform">
+                <i class="fas fa-fingerprint"></i>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Attendance</p>
+                <p class="text-2xl font-bold text-slate-900" id="stat-attendance">0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Sections Split -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Student Section -->
+        <div class="mgmt-tab">
+            <div class="mgmt-header">
+                <div>
+                    <h3 class="font-bold text-slate-800">Student Directory</h3>
+                    <p class="text-xs text-slate-500">Manage enrollment and records</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openAddStudentModal()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Add Student">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button onclick="openUploadCSVModal()" class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Batch Upload">
+                        <i class="fas fa-file-upload"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col min-h-0">
+                <div class="relative mb-4">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="student-search" placeholder="Enter Roll or Name to Search" class="search-input">
+                </div>
+                <div id="students-container" class="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-[300px] max-h-[500px]">
+                    <!-- Population via JS -->
+                    <div class="flex flex-col items-center justify-center p-12 text-slate-300">
+                        <div class="relative w-16 h-16 flex items-center justify-center mb-4">
+                            <i class="fas fa-sync-alt text-3xl text-indigo-500 fa-spin"></i>
+                            <div class="absolute inset-0 border-2 border-indigo-100 rounded-full"></div>
+                        </div>
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Synchronizing Student Registry</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exam Section -->
+        <div class="mgmt-tab">
+            <div class="mgmt-header">
+                <div>
+                    <h3 class="font-bold text-slate-800">Exam Schedules</h3>
+                    <p class="text-xs text-slate-500">Coordinate timing and venues</p>
+                </div>
+                <button onclick="openAddExamModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
+                    <i class="fas fa-plus"></i>
+                    <span>New Exam</span>
+                </button>
+            </div>
+            <div class="p-6 flex-1 flex flex-col min-h-0">
+                <div class="relative mb-4">
+                    <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="exam-search" placeholder="Enter Subject to Filter" class="search-input">
+                </div>
+                <div id="exams-container" class="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-[300px] max-h-[500px]">
+                    <!-- Population via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticketing & Seating Section -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        <!-- Automation Box -->
+        <div class="xl:col-span-4 premium-card p-8 bg-slate-900 text-white relative overflow-hidden group">
+            <div class="absolute -right-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl transition-all group-hover:scale-150 group-hover:bg-indigo-400/30"></div>
+            <div class="relative z-10">
+                <h3 class="text-xl font-bold mb-2">Hall Ticket Center</h3>
+                <p class="text-slate-400 text-sm mb-8">Generate official entry permits and assign seating in one click.</p>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Active Schedule</label>
+                        <select id="ticket-exam-select" multiple class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer min-h-[120px]">
+                            <!-- Options populated via JS -->
+                        </select>
+                        <p class="text-[9px] text-slate-500 mt-2 italic">Hold Ctrl (Cmd) to select multiple exams</p>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="openSelectStudents()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all flex items-center justify-center space-x-2">
+                            <i class="fas fa-user-check"></i>
+                            <span>Select Target</span>
+                        </button>
+                        <button onclick="selectAllStudentsQuick()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-700">
+                            ALL
+                        </button>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs text-slate-500">Selected Population</span>
+                            <span id="selected-count" class="text-indigo-400 font-bold">0</span>
+                        </div>
+                        <button onclick="generateHallTickets()" class="w-full bg-white text-slate-900 hover:bg-slate-100 py-4 rounded-xl font-bold shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center space-x-3">
+                            <span>Initialize Generation</span>
+                            <i class="fas fa-bolt text-indigo-600"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seating Visualization -->
+        <div class="xl:col-span-8 mgmt-tab">
+            <div class="mgmt-header">
+                <div>
+                    <h3 class="font-bold text-slate-800">Hall Layout Engine</h3>
+                    <p class="text-xs text-slate-500">Real-time seat allotment preview</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <select id="seating-exam-select" onchange="loadSeatingArrangement()" class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="">Choose Exam Perspective...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="p-6 grid-bg flex-1 min-h-[500px] flex flex-col">
+                <div class="flex justify-center mb-10">
+                    <div class="w-2/3 h-4 bg-slate-800 rounded-b-2xl shadow-xl flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_2s_infinite]"></div>
+                        <span class="text-[7px] uppercase tracking-[0.6em] text-slate-400 font-black">Examination Front / Invigilator Console</span>
+                    </div>
+                </div>
+
+                <div id="hall-grid-container" class="flex-1 overflow-auto flex items-center justify-center custom-scrollbar">
+                    <div class="text-center text-slate-300 py-20 animate-pulse">
+                        <i class="fas fa-th text-6xl mb-4 opacity-10"></i>
+                        <p class="text-xs font-bold uppercase tracking-widest">Awaiting Session Selection</p>
+                    </div>
+                </div>
+
+                <div class="mt-10 flex flex-wrap justify-center gap-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] bg-white/50 backdrop-blur-sm p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-4 h-4 bg-slate-100 border-2 border-slate-200 rounded-lg"></div>
+                        <span>VACANT DESK</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-4 h-4 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200"></div>
+                        <span class="text-indigo-600">OCCUPIED SEAT</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-4 h-4 bg-emerald-500 rounded-lg shadow-lg shadow-emerald-200"></div>
+                        <span class="text-emerald-600">VERIFIED ENTRY</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Statistics Section -->
+    <div class="mgmt-tab mt-8">
+        <div class="mgmt-header">
+            <div>
+                <h3 class="font-bold text-slate-800">Attendance Intelligence</h3>
+                <p class="text-xs text-slate-500">Real-time participation metrics</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <select id="report-exam-select" class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-orange-500 outline-none">
+                    <option value="">Choose Exam Perspective...</option>
+                </select>
+                <button onclick="loadAttendanceReport()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-2">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Generate Report</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-8">
+            <div id="attendance-report" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Initial State -->
+                <div class="md:col-span-3 text-center py-12 text-slate-400">
+                    <i class="fas fa-file-invoice text-4xl mb-4 opacity-10"></i>
+                    <p class="text-sm font-medium">Select an exam to synthesize attendance data</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<style>
+    @keyframes modal-pop {
+        0% { transform: scale(0.95); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+</style>
+{% endblock %}
+
+<!-- Notification -->
+<div id="notification" class="hidden fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-50 border-l-4">
+    <div class="flex items-start gap-3">
+        <i id="notification-icon" class="fas fa-check-circle text-green-600 mt-1 text-xl"></i>
+        <div class="flex-1">
+            <p id="notification-title" class="font-bold text-gray-900"></p>
+            <p id="notification-message" class="text-sm text-gray-600 mt-1"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div id="add-student-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-95 opacity-0 animate-[modal-pop_0.4s_ease-out_forwards]">
+        <div class="p-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Add New Student</h3>
+                    <p class="text-xs text-slate-500 font-medium">Create a single academic profile</p>
+                </div>
+                <button onclick="closeAddStudentModal()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="add-student-form" class="space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Roll ID *</label>
+                        <input type="text" id="student-roll" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Roll ID">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Batch *</label>
+                        <input type="text" id="student-batch" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Batch Year">
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Full Name *</label>
+                    <input type="text" id="student-name" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Full Name">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">University Email *</label>
+                    <input type="email" id="student-email" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Email Address">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Contact Phone</label>
+                        <input type="tel" id="student-phone" class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Phone Number">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Gender *</label>
+                        <select id="student-gender" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer">
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                            <option value="O">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Branch / Department</label>
+                    <input type="text" id="student-branch" class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Branch Name">
+                </div>
+                <div class="flex gap-4 pt-6">
+                    <button type="button" onclick="closeAddStudentModal()" class="flex-1 px-6 py-4 rounded-2xl text-slate-600 font-bold hover:bg-slate-50 transition-colors">Cancel</button>
+                    <button type="submit" class="flex-1 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all transform hover:scale-[1.02]">
+                        Enroll Student
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload CSV Modal -->
+<div id="upload-csv-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-95 opacity-0 animate-[modal-pop_0.4s_ease-out_forwards]">
+        <div class="p-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Batch Onboarding</h3>
+                    <p class="text-xs text-slate-500 font-medium">Upload student database via CSV</p>
+                </div>
+                <button onclick="closeUploadCSVModal()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="upload-csv-form" class="space-y-6">
+                <div class="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100 flex items-start space-x-3">
+                    <i class="fas fa-info-circle text-indigo-500 mt-1"></i>
+                    <p class="text-[11px] text-indigo-700 leading-relaxed">
+                        <strong>Formatting Guide:</strong> Ensure columns are ordered as: <br>
+                        <code class="bg-white px-1.5 py-0.5 rounded border border-indigo-200 mt-1 inline-block">roll_number, name, email, phone, batch, branch</code>
+                    </p>
+                </div>
+                <label class="group block border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 transition-all duration-300">
+                    <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mx-auto mb-4 group-hover:bg-white group-hover:text-indigo-600 group-hover:scale-110 transition-all">
+                        <i class="fas fa-file-csv text-2xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-slate-800">Choose CSV data file</p>
+                    <p class="text-xs text-slate-500 mt-1">or drag and drop here</p>
+                    <input type="file" id="csv-file" accept=".csv" class="hidden" onchange="handleCSVUpload()">
+                </label>
+                <p id="csv-file-name" class="text-xs text-indigo-600 font-bold text-center italic"></p>
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="closeUploadCSVModal()" class="flex-1 py-4 text-slate-600 font-bold hover:bg-slate-50 rounded-2xl">Cancel</button>
+                    <button type="submit" class="flex-1 py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold shadow-xl shadow-green-100 transition-all">
+                        Run Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Exam Modal -->
+<div id="add-exam-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all scale-95 opacity-0 animate-[modal-pop_0.4s_ease-out_forwards]">
+        <div class="p-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Schedule Examination</h3>
+                    <p class="text-xs text-slate-500 font-medium">Configure date, timing, and hall allotment</p>
+                </div>
+                <button onclick="closeAddExamModal()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="add-exam-form" class="space-y-6">
+                <!-- Subject Selection -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Target Subject *</label>
+                        <select id="exam-subject-select" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer" onchange="updateSubjectInputs()">
+                            <option value="">Search Subject...</option>
+                        </select>
+                        <input type="hidden" id="exam-code">
+                        <input type="hidden" id="exam-name">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Examination Date *</label>
+                        <input type="date" id="exam-date" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Timing -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Starts At *</label>
+                        <input type="time" id="exam-start-time" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Ends At *</label>
+                        <input type="time" id="exam-end-time" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Venue & Capacity -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                    <h4 class="text-xs font-bold text-slate-800 mb-4 flex items-center">
+                        <i class="fas fa-map-marker-alt text-red-400 mr-2"></i> Venue Configuration
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Hall / Room *</label>
+                            <select id="exam-room-select" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" onchange="updateRoomInputs()">
+                                <option value="">Select Room...</option>
+                            </select>
+                            <input type="hidden" id="exam-room">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Rows *</label>
+                            <input type="number" id="exam-rows" required value="10" min="1" max="26" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cols *</label>
+                            <input type="number" id="exam-cols" required value="6" min="1" max="20" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personnel -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Chief Invigilator *</label>
+                        <input type="text" id="exam-invigilator" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Enter Invigilator Name">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Capacity *</label>
+                        <input type="number" id="exam-max-students" required class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-indigo-600 font-bold" placeholder="Enter Seat Capacity">
+                    </div>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="closeAddExamModal()" class="flex-1 py-4 text-slate-600 font-bold hover:bg-slate-50 rounded-2xl">Discard</button>
+                    <button type="submit" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-2xl shadow-indigo-200 transition-all transform hover:scale-[1.02]">
+                        Publish Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Select Students Modal -->
+<div id="select-students-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col transform transition-all scale-95 opacity-0 animate-[modal-pop_0.4s_ease-out_forwards] h-[80vh]">
+        <div class="p-8 border-b border-slate-100">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Student Selection</h3>
+                    <p class="text-xs text-slate-500 font-medium">Filter and choose candidates for hall tickets</p>
+                </div>
+                <button onclick="closeSelectStudents()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="student-select-search" placeholder="Search..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-indigo-500" onkeyup="filterStudentsForSelection()">
+                </div>
+                <select id="filter-batch" class="bg-slate-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer" onchange="filterStudentsForSelection()">
+                    <option value="">All Batches</option>
+                </select>
+                <select id="filter-branch" class="bg-slate-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer" onchange="filterStudentsForSelection()">
+                    <option value="">All Branches</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="p-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+            <div class="flex justify-between items-center mb-4 px-2">
+                <label class="group flex items-center space-x-3 cursor-pointer">
+                    <div class="relative flex items-center">
+                        <input type="checkbox" id="select-all-checkbox" class="peer hidden" onchange="toggleSelectAll(this)"> 
+                        <div class="w-5 h-5 border-2 border-slate-200 rounded-md peer-checked:bg-indigo-600 peer-checked:border-indigo-600 transition-all flex items-center justify-center">
+                            <i class="fas fa-check text-[10px] text-white opacity-0 peer-checked:opacity-100"></i>
+                        </div>
+                        <span id="select-all-label" class="text-xs font-bold text-slate-600 ml-2 group-hover:text-indigo-600">Select Visible Candidates</span>
+                    </div>
+                </label>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest" id="visible-count">Showing 0 candidates</span>
+            </div>
+            
+            <div id="student-select-list" class="grid grid-cols-1 gap-2">
+                <!-- Data via JS -->
+                <div class="flex flex-col items-center justify-center p-20 text-slate-400">
+                    <div class="loader mb-4 border-t-indigo-600"></div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Polling Database...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
+            <button type="button" onclick="closeSelectStudents()" class="flex-1 py-4 text-slate-600 font-bold hover:bg-white rounded-2xl transition-colors">Cancel</button>
+            <button type="button" onclick="confirmStudentSelection()" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all">
+                Finalize Selection
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_URL = '/api';
+let selectedStudentIds = [];
+let allStudents = [];
+let allExams = [];
+let allSubjects = [];
+let allRooms = [];
+let currentTicketId = null;
+// Modal Functions
+function openAddStudentModal() {
+    document.getElementById('add-student-modal').classList.remove('hidden');
+}
+
+function closeAddStudentModal() {
+    document.getElementById('add-student-modal').classList.add('hidden');
+    document.getElementById('add-student-form').reset();
+}
+
+function openUploadCSVModal() {
+    document.getElementById('upload-csv-modal').classList.remove('hidden');
+}
+
+function closeUploadCSVModal() {
+    document.getElementById('upload-csv-modal').classList.add('hidden');
+    document.getElementById('upload-csv-form').reset();
+    document.getElementById('csv-file-name').textContent = '';
+}
+
+function openAddExamModal() {
+    document.getElementById('add-exam-modal').classList.remove('hidden');
+}
+
+function closeAddExamModal() {
+    document.getElementById('add-exam-modal').classList.add('hidden');
+    document.getElementById('add-exam-form').reset();
+}
+
+function openSelectStudents() {
+    document.getElementById('select-students-modal').classList.remove('hidden');
+    loadStudentsForSelection();
+}
+
+function closeSelectStudents() {
+    document.getElementById('select-students-modal').classList.add('hidden');
+}
+
+// Notification
+function showNotification(title, message = '', type = 'success') {
+    const notification = document.getElementById('notification');
+    const icon = document.getElementById('notification-icon');
+    const border = notification;
+    
+    document.getElementById('notification-title').textContent = title;
+    document.getElementById('notification-message').textContent = message;
+    
+    // Clear previous classes
+    icon.className = 'fas mt-1 text-xl';
+    border.className = 'fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-50 border-l-4';
+    
+    if (type === 'success') {
+        icon.classList.add('fa-check-circle', 'text-green-600');
+        border.classList.add('border-green-500');
+    } else if (type === 'error') {
+        icon.classList.add('fa-exclamation-circle', 'text-red-600');
+        border.classList.add('border-red-500');
+    } else if (type === 'warning') {
+        icon.classList.add('fa-info-circle', 'text-yellow-600');
+        border.classList.add('border-yellow-500');
+    }
+    
+    notification.classList.remove('hidden');
+    setTimeout(() => {
+        notification.classList.add('hidden');
+    }, 4000);
+}
+
+// Authentication & User Info
+function getToken() {
+    return localStorage.getItem('token');
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
+}
+
+// Load Dashboard
+async function loadDashboard() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const nameDisplay = document.getElementById('user-name-display');
+        if (nameDisplay) nameDisplay.textContent = user.username || 'Admin';
+        
+        // Load initial data
+        await Promise.all([
+            loadStats(),
+            loadStudents(),
+            loadExams(),
+            loadSubjectsAndRooms()
+        ]);
+        
+        // Populate dependent dropdowns
+        await loadExamSelects(); 
+    } catch (error) {
+        console.error('Dashboard load error:', error);
+        showNotification('Error', 'Failed to load dashboard', 'error');
+    }
+}
+
+async function loadStats() {
+    try {
+        const response = await fetch(`${API_URL}/status/`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        
+        if (!response.ok) throw new Error('Stats load failed');
+        
+        const data = await response.json();
+        if (data.status === 'ok' && data.stats) {
+            const stats = data.stats;
+            document.getElementById('stat-students').textContent = stats.students || 0;
+            document.getElementById('stat-exams').textContent = stats.exams || 0;
+            document.getElementById('stat-tickets').textContent = stats.hall_tickets || 0;
+            document.getElementById('stat-attendance').textContent = stats.attendance || 0;
+        }
+    } catch (error) {
+        console.error('Stats load error:', error);
+    }
+}
+
+async function loadStudents() {
+    try {
+        const response = await fetch(`${API_URL}/students/`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        if (!response.ok) throw new Error('Load failed');
+        
+        const data = await response.json();
+        allStudents = data.results || (Array.isArray(data) ? data : []);
+        displayStudents(allStudents);
+    } catch (error) {
+        console.error('Students load error:', error);
+        document.getElementById('students-container').innerHTML = '<p class="text-red-600 text-center">Error loading students</p>';
+    }
+}
+
+function displayStudents(students) {
+    const container = document.getElementById('students-container');
+    if (!students || students.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-8 text-slate-400">
+                <i class="fas fa-search text-3xl mb-3 opacity-20"></i>
+                <p class="text-xs font-medium uppercase tracking-widest">No matching students</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = students.map(s => `
+        <div class="group flex items-center justify-between p-4 mb-3 bg-white border border-slate-100 rounded-2xl hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm leading-tight">${s.name}</h4>
+                    <p class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">${s.roll_number}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="hidden sm:flex flex-col items-end text-[10px] font-semibold">
+                    <span class="text-indigo-600">${s.branch || 'General'}</span>
+                    <span class="text-slate-400">Batch ${s.batch || '2024'}</span>
+                </div>
+                <button onclick="deleteStudent('${s.id}')" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                    <i class="fas fa-trash-alt text-xs"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+let searchTimeout;
+document.getElementById('student-search')?.addEventListener('keyup', function() {
+    const query = this.value.trim();
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+        displayStudents(allStudents);
+        return;
+    }
+    
+    searchTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(`${API_URL}/students/search/?q=${encodeURIComponent(query)}`, {
+                headers: {'Authorization': `Bearer ${getToken()}`}
+            });
+            if (!response.ok) throw new Error('Search failed');
+            const data = await response.json();
+            displayStudents(data.results || []);
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }, 400); // 400ms debounce
+});
+
+async function loadExams() {
+    try {
+        const response = await fetch(`${API_URL}/exams/`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        if (!response.ok) throw new Error('Load failed');
+        
+        const data = await response.json();
+        allExams = data.results || (Array.isArray(data) ? data : []);
+        displayExams(allExams);
+        await loadExamSelects(); // Ensure dropdowns are updated after loadExams
+    } catch (error) {
+        console.error('Exams load error:', error);
+        document.getElementById('exams-container').innerHTML = '<p class="text-red-600 text-center">Error loading exams</p>';
+    }
+}
+
+async function loadSubjectsAndRooms() {
+    try {
+        const headers = {'Authorization': `Bearer ${getToken()}`};
+        const [subResp, roomResp] = await Promise.all([
+            fetch(`${API_URL}/subjects/`, {headers}),
+            fetch(`${API_URL}/rooms/`, {headers})
+        ]);
+        
+        const subData = await subResp.json();
+        const roomData = await roomResp.json();
+        
+        allSubjects = subData.results || subData;
+        allRooms = roomData.results || roomData;
+        
+        // Populate Subject Select
+        const subSelect = document.getElementById('exam-subject-select');
+        if (subSelect) {
+            subSelect.innerHTML = '<option value="">Choose a subject...</option>' + 
+                allSubjects.map(s => `<option value="${s.id}">${s.code} - ${s.name}</option>`).join('');
+        }
+            
+        // Populate Room Select
+        const roomSelect = document.getElementById('exam-room-select');
+        if (roomSelect) {
+            roomSelect.innerHTML = '<option value="">Choose a room...</option>' + 
+                allRooms.map(r => `<option value="${r.room_number}">${r.room_number}</option>`).join('');
+        }
+            
+    } catch (error) {
+        console.error('Error loading subjects/rooms:', error);
+    }
+}
+
+function updateSubjectInputs() {
+    const select = document.getElementById('exam-subject-select');
+    const subjectId = select.value;
+    // Use == for comparison as subjectId from select is string while s.id might be numeric
+    const subject = allSubjects.find(s => s.id == subjectId);
+    
+    if (subject) {
+        document.getElementById('exam-code').value = subject.code;
+        document.getElementById('exam-name').value = subject.name;
+    } else {
+        document.getElementById('exam-code').value = '';
+        document.getElementById('exam-name').value = '';
+    }
+}
+
+function updateRoomInputs() {
+    const select = document.getElementById('exam-room-select');
+    const roomNum = select.value;
+    const room = allRooms.find(r => r.room_number == roomNum);
+    
+    if (room) {
+        document.getElementById('exam-room').value = room.room_number;
+        document.getElementById('exam-rows').value = room.rows || 10;
+        document.getElementById('exam-cols').value = room.cols || 6;
+        document.getElementById('exam-max-students').value = room.capacity || (room.rows * room.cols) || 60;
+    } else {
+        document.getElementById('exam-room').value = '';
+    }
+}
+
+function displayExams(exams) {
+    const container = document.getElementById('exams-container');
+    if (!exams || exams.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-8 text-slate-400">
+                <i class="fas fa-calendar-times text-3xl mb-3 opacity-20"></i>
+                <p class="text-xs font-medium uppercase tracking-widest">No scheduled exams</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = exams.map(e => `
+        <div class="group p-4 mb-3 bg-white border border-slate-100 rounded-2xl hover:border-green-200 hover:shadow-lg hover:shadow-green-500/5 transition-all duration-300">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-100 transition-colors text-xs font-bold">
+                        ${e.subject_code.substring(0,2)}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">${e.subject_name}</h4>
+                        <p class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">${e.subject_code}</p>
+                    </div>
+                </div>
+                <button onclick="deleteExam('${e.id}')" class="p-1.5 text-slate-300 hover:text-red-500 rounded-md transition-colors">
+                    <i class="fas fa-times text-[10px]"></i>
+                </button>
+            </div>
+            <div class="flex items-center justify-between pt-3 border-t border-slate-50">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-1.5 text-[10px] text-slate-500 font-semibold">
+                        <i class="far fa-calendar text-indigo-400"></i>
+                        <span>${e.date}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 text-[10px] text-slate-500 font-semibold">
+                        <i class="far fa-clock text-orange-400"></i>
+                         <span>${e.start_time} - ${e.end_time}</span>
+                    </div>
+                </div>
+                <div class="bg-slate-100 px-2 py-0.5 rounded text-[9px] font-black text-slate-500 uppercase">
+                    RM: ${e.room_number || 'N/A'}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+document.getElementById('exam-search')?.addEventListener('keyup', function() {
+    const query = this.value.toLowerCase();
+    const filtered = allExams.filter(e => 
+        e.subject_code.toLowerCase().includes(query) || 
+        e.subject_name.toLowerCase().includes(query)
+    );
+    displayExams(filtered);
+});
+
+async function loadExamSelects() {
+    const selects = ['ticket-exam-select', 'report-exam-select', 'seating-exam-select'];
+    selects.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel && allExams.length > 0) {
+            const isMultiple = sel.hasAttribute('multiple');
+            let options = isMultiple ? '' : '<option value="">Choose an exam...</option>';
+            options += allExams.map(e => `<option value="${e.id}">${e.subject_code} - ${e.subject_name}</option>`).join('');
+            sel.innerHTML = options;
+        }
+    });
+}
+
+// Form Handlers
+document.getElementById('add-student-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const data = {
+        roll_number: document.getElementById('student-roll').value.trim(),
+        name: document.getElementById('student-name').value.trim(),
+        email: document.getElementById('student-email').value.trim(),
+        phone: document.getElementById('student-phone') ? document.getElementById('student-phone').value.trim() : '',
+        batch: document.getElementById('student-batch').value.trim() || '',
+        branch: document.getElementById('student-branch').value.trim() || '',
+        gender: document.getElementById('student-gender') ? document.getElementById('student-gender').value : 'M'
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/students/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            // Handle both structure: {error: "...", detail: "..."} and DRF {field: ["error"]}
+            let errorMsg = err.detail || err.error;
+            if (!errorMsg && typeof err === 'object') {
+                errorMsg = Object.values(err).flat().join(', ');
+            }
+            throw new Error(errorMsg || 'Enrollment failed');
+        }
+        
+        showNotification('Success', 'Student added successfully!');
+        closeAddStudentModal();
+        await Promise.all([loadStudents(), loadStats()]);
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+});
+
+document.getElementById('upload-csv-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const file = document.getElementById('csv-file').files[0];
+    if (!file) {
+        showNotification('Error', 'Please select a file', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    
+    try {
+        const response = await fetch(`${API_URL}/students/bulk_upload/`, {
+            method: 'POST',
+            headers: {'Authorization': `Bearer ${getToken()}`},
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.errors?.csv_file?.[0] || 'Upload failed');
+        }
+        
+        const result = await response.json();
+        showNotification('Success', `${result.created} students added!`);
+        closeUploadCSVModal();
+        await Promise.all([loadStudents(), loadStats()]);
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+});
+
+function handleCSVUpload() {
+    const file = document.getElementById('csv-file').files[0];
+    if (file) {
+        document.getElementById('csv-file-name').textContent = `Selected: ${file.name}`;
+    }
+}
+
+document.getElementById('add-exam-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const data = {
+        subject_code: document.getElementById('exam-code').value.trim(),
+        subject_name: document.getElementById('exam-name').value.trim(),
+        date: document.getElementById('exam-date').value,
+        start_time: document.getElementById('exam-start-time').value,
+        end_time: document.getElementById('exam-end-time').value,
+        room_number: document.getElementById('exam-room').value.trim(),
+        invigilator_name: document.getElementById('exam-invigilator').value.trim(),
+        max_students: parseInt(document.getElementById('exam-max-students').value),
+        hall_rows: parseInt(document.getElementById('exam-rows').value),
+        hall_cols: parseInt(document.getElementById('exam-cols').value)
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/exams/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || JSON.stringify(err));
+        }
+        
+        showNotification('Success', 'Exam created successfully!');
+        closeAddExamModal();
+        await Promise.all([loadExams(), loadStats()]); // loadExams will trigger loadExamSelects
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+});
+
+// Student Selection
+async function loadStudentsForSelection() {
+    try {
+        const response = await fetch(`${API_URL}/students/?page_size=1000`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        if (!response.ok) throw new Error('Load failed');
+        
+        const data = await response.json();
+        const students = data.results || (Array.isArray(data) ? data : []);
+        
+        // Populate filters
+        const batches = [...new Set(students.map(s => s.batch).filter(Boolean))].sort();
+        const branches = [...new Set(students.map(s => s.branch).filter(Boolean))].sort();
+        
+        const batchSelect = document.getElementById('filter-batch');
+        const branchSelect = document.getElementById('filter-branch');
+        
+        if (batchSelect) {
+            batchSelect.innerHTML = '<option value="">All Batches</option>' + 
+                batches.map(b => `<option value="${b}">${b}</option>`).join('');
+        }
+        if (branchSelect) {
+            branchSelect.innerHTML = '<option value="">All Branches</option>' + 
+                branches.map(b => `<option value="${b}">${b}</option>`).join('');
+        }
+
+        const list = document.getElementById('student-select-list');
+        list.innerHTML = students.map(s => `
+            <div class="group flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-indigo-200 transition-all student-item" data-batch="${s.batch || ''}" data-branch="${s.branch || ''}">
+                <div class="flex items-center space-x-3">
+                    <label class="relative flex items-center cursor-pointer group">
+                        <input type="checkbox" value="${s.id}" class="student-checkbox peer hidden" ${selectedStudentIds.includes(s.id) ? 'checked' : ''} onchange="updateSelectedCount()">
+                        <div class="w-6 h-6 border-2 border-slate-200 rounded-lg group-hover:border-emerald-400 peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-all flex items-center justify-center shadow-sm peer-checked:shadow-emerald-100">
+                            <i class="fas fa-check text-[10px] text-white opacity-0 peer-checked:opacity-100 transform scale-50 peer-checked:scale-100 transition-transform duration-300"></i>
+                        </div>
+                    </label>
+                    <div>
+                        <p class="font-bold text-slate-800 text-xs">${s.name}</p>
+                        <p class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">${s.roll_number}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">${s.branch || 'N/A'}</span>
+                    <span class="text-[9px] text-slate-400">Batch ${s.batch || '-'}</span>
+                </div>
+            </div>
+        `).join('');
+        
+        filterStudentsForSelection();
+    } catch (error) {
+        console.error('Selection load error:', error);
+    }
+}
+
+function filterStudentsForSelection() {
+    const query = document.getElementById('student-select-search').value.toLowerCase();
+    const batch = document.getElementById('filter-batch').value;
+    const branch = document.getElementById('filter-branch').value;
+    
+    let visibleCount = 0;
+    document.querySelectorAll('.student-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        const itemBatch = item.getAttribute('data-batch');
+        const itemBranch = item.getAttribute('data-branch');
+        
+        const matchesSearch = text.includes(query);
+        const matchesBatch = !batch || itemBatch === batch;
+        const matchesBranch = !branch || itemBranch === branch;
+        
+        if (matchesSearch && matchesBatch && matchesBranch) {
+            item.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+    
+    document.getElementById('visible-count').textContent = `Showing ${visibleCount} students`;
+    updateSelectAllState();
+}
+
+function toggleSelectAll(checkbox) {
+    const visibleCheckboxes = document.querySelectorAll('.student-item:not(.hidden) .student-checkbox');
+    visibleCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectAllState() {
+    const selectAllCb = document.getElementById('select-all-checkbox');
+    const visibleCheckboxes = document.querySelectorAll('.student-item:not(.hidden) .student-checkbox');
+    
+    if (visibleCheckboxes.length === 0) {
+        selectAllCb.checked = false;
+        selectAllCb.disabled = true;
+    } else {
+        selectAllCb.disabled = false;
+        const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+        selectAllCb.checked = allChecked;
+    }
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.student-checkbox:checked').length;
+    document.getElementById('selected-count').textContent = count;
+}
+
+function confirmStudentSelection() {
+    selectedStudentIds = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    closeSelectStudents();
+}
+
+async function generateHallTickets() {
+    const select = document.getElementById('ticket-exam-select');
+    const examIds = Array.from(select.selectedOptions).map(opt => opt.value).filter(id => id !== "");
+    
+    if (examIds.length === 0) {
+        showNotification('Error', 'Select at least one exam', 'error');
+        return;
+    }
+    if (selectedStudentIds.length === 0) {
+        showNotification('Error', 'Select at least one student', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/hall-tickets/generate_bulk/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify({exam_ids: examIds, student_ids: selectedStudentIds})
+        });
+        
+        if (!response.ok) throw new Error('Generation failed');
+        
+        const result = await response.json();
+        showNotification('Success', `${result.total_created} tickets generated across ${examIds.length} exams!`);
+        
+        if (result.results && result.results.some(r => r.failed.length > 0)) {
+            console.warn('Some generations failed:', result.results);
+        }
+        selectedStudentIds = [];
+        document.getElementById('selected-count').textContent = '0';
+        await loadStats();
+        const currentSeatingView = document.getElementById('seating-exam-select').value;
+        if (currentSeatingView && examIds.includes(currentSeatingView)) {
+            await loadSeatingArrangement();
+        }
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+async function loadSeatingArrangement() {
+    const examId = document.getElementById('seating-exam-select').value;
+    const container = document.getElementById('hall-grid-container');
+    
+    if (!examId) {
+        container.innerHTML = `
+            <div class="text-center text-slate-400 py-20 flex flex-col items-center">
+                <i class="fas fa-th text-5xl mb-4 opacity-10"></i>
+                <p class="text-sm font-medium">Select an examination perspective</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        container.innerHTML = `<div class="p-20 text-indigo-600"><i class="fas fa-circle-notch fa-spin text-4xl"></i></div>`;
+        
+        const exam = allExams.find(e => e.id === examId);
+        const response = await fetch(`${API_URL}/hall-tickets/?exam_id=${examId}&page_size=1000`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        
+        if (!response.ok) throw new Error('Query failed');
+        const data = await response.json();
+        const tickets = data.results || [];
+        
+        const allotmentMap = {};
+        tickets.forEach(t => {
+            if (t.seat_assigned) allotmentMap[t.seat_assigned] = t;
+        });
+
+        const rows = exam.hall_rows || 10;
+        const cols = exam.hall_cols || 6;
+        
+        let gridHtml = `<div class="inline-grid gap-2 p-8 bg-white/50 rounded-3xl border border-slate-100 shadow-inner" style="grid-template-columns: auto repeat(${cols}, minmax(0, 1fr))">`;
+        
+        // Header Row (Column Labels)
+        gridHtml += `<div></div>`; // Empty top-left
+        for (let c = 1; c <= cols; c++) {
+            gridHtml += `<div class="text-[10px] font-black text-slate-300 text-center uppercase tracking-widest pb-2">${c}</div>`;
+        }
+
+        for (let r = 0; r < rows; r++) {
+            const rowLabel = String.fromCharCode(65 + r);
+            // Row Label
+            gridHtml += `<div class="text-[10px] font-black text-slate-300 flex items-center pr-4 uppercase tracking-widest">${rowLabel}</div>`;
+            
+            for (let c = 1; c <= cols; c++) {
+                const seatId = `${rowLabel}${c}`;
+                const ticket = allotmentMap[seatId];
+                const isAllotted = !!ticket;
+                const isPresent = ticket && ticket.is_present;
+                
+                gridHtml += `
+                    <div class="group relative">
+                        <div 
+                            onclick="showSeatDetail('${seatId}', ${ticket ? JSON.stringify(ticket).replace(/"/g, '&quot;') : 'null'})"
+                            class="seat ${isAllotted ? (isPresent ? 'seat-verified shadow-lg shadow-emerald-200/50' : 'seat-allotted shadow-lg shadow-indigo-200/50') : 'seat-empty'} transition-all hover:scale-110 active:scale-95">
+                            ${c}
+                        </div>
+                        ${isAllotted ? `
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 hidden group-hover:block z-50 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-300">
+                            <div class="bg-white/95 backdrop-blur-xl p-4 rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col items-center min-w-[180px]">
+                                <div class="relative mb-3">
+                                    <img src="${ticket.student.profile_image || 'https://ui-avatars.com/api/?name='+ticket.student.name}" class="w-12 h-12 rounded-2xl shadow-md border-2 border-white">
+                                    <div class="absolute -right-1 -bottom-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                                </div>
+                                <div class="text-center">
+                                    <p class="font-black text-slate-800 text-sm leading-tight">${ticket.student.name}</p>
+                                    <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-1">${ticket.student.roll_number}</p>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-slate-50 w-full flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                    <span>SEAT ${seatId}</span>
+                                    <span class="text-slate-300">|</span>
+                                    <span>${ticket.student.branch || 'GENERAL'}</span>
+                                </div>
+                                <div class="w-3 h-3 bg-white absolute top-full left-1/2 -translate-x-1/2 -mt-1.5 rotate-45 border-b border-r border-slate-100"></div>
+                            </div>
+                        </div>` : ''}
+                    </div>`;
+            }
+        }
+        gridHtml += `</div>`;
+        container.innerHTML = gridHtml;
+        
+    } catch (error) {
+        container.innerHTML = `<div class="p-20 text-red-500 font-bold">${error.message}</div>`;
+    }
+}
+
+function showSeatDetail(seatId, ticket) {
+    if (!ticket) {
+        showNotification('Seat Info', `Seat ${seatId} is currently available.`, 'info');
+    } else {
+        showNotification('Allotted', `${ticket.student.name} is seated at ${seatId}.`, 'success');
+    }
+
+    // Seat detail logic moved to toast
+}
+
+async function selectAllStudentsQuick() {
+    try {
+        if (allStudents.length === 0) {
+            await loadStudents();
+        }
+        selectedStudentIds = allStudents.map(s => s.id);
+        document.getElementById('selected-count').textContent = selectedStudentIds.length;
+        showNotification('Success', `Selected all ${selectedStudentIds.length} students`);
+    } catch (error) {
+        showNotification('Error', 'Failed to select students', 'error');
+    }
+}
+
+async function loadAttendanceReport() {
+    const examId = document.getElementById('report-exam-select').value;
+    
+    if (!examId) {
+        showNotification('Error', 'Select an exam', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/attendance/exam_report/?exam_id=${examId}`, {
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        
+        if (!response.ok) throw new Error('Load failed');
+        
+        const data = await response.json();
+        const percent = data.total_tickets ? ((data.marked_attendance / data.total_tickets) * 100).toFixed(1) : 0;
+        
+        document.getElementById('attendance-report').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-icon bg-blue-50 text-blue-600">
+                    <i class="fas fa-users-viewfinder"></i>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Expected Candidates</p>
+                    <p class="text-2xl font-bold text-slate-800">${data.total_tickets}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-green-50 text-green-600">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Verified Entries</p>
+                    <p class="text-2xl font-bold text-slate-800">${data.marked_attendance}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-orange-50 text-orange-600">
+                    <i class="fas fa-percent"></i>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Turnout Rate</p>
+                    <div class="flex items-center space-x-2">
+                        <p class="text-2xl font-bold text-slate-800">${percent}%</p>
+                        <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-orange-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+// Delete Functions
+async function deleteStudent(id) {
+    if (!confirm('Delete this student?')) return;
+    try {
+        const response = await fetch(`${API_URL}/students/${id}/`, {
+            method: 'DELETE',
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        if (!response.ok) throw new Error('Delete failed');
+        showNotification('Success', 'Student deleted');
+        await Promise.all([loadStudents(), loadStats()]);
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+async function deleteExam(id) {
+    if (!confirm('Delete this exam?')) return;
+    try {
+        const response = await fetch(`${API_URL}/exams/${id}/`, {
+            method: 'DELETE',
+            headers: {'Authorization': `Bearer ${getToken()}`}
+        });
+        if (!response.ok) throw new Error('Delete failed');
+        showNotification('Success', 'Exam deleted');
+        await Promise.all([loadExams(), loadExamSelects(), loadStats()]);
+    } catch (error) {
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    if (!getToken()) {
+        window.location.href = '/';
+        return;
+    }
+    loadDashboard();
+    setInterval(loadStats, 30000);
+});
+</script>
+{% endblock %}
