@@ -66,7 +66,7 @@ Database (SQLite)
 
 1. **Activate Virtual Environment**
 ```bash
-cd "c:\Users\midhu\OneDrive\Desktop\Hallticket"
+
 H-T\Scripts\activate  # On Windows
 ```
 
